@@ -21,7 +21,6 @@ func main() {
 	r.Use(middleware.RealIP)
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Logger)
-	r.Use(middleware.Timeout(time.Minute))
 
 	server := &http.Server{
 		Addr:         ":6969",
@@ -34,13 +33,18 @@ func main() {
 	rm := NewRoomManager()
 
 	r.Route("/api", func(r chi.Router) {
-		r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
-			w.WriteHeader(http.StatusOK)
-			w.Write([]byte("Up and Running"))
-		})
-
 		r.Route("/v1", func(r chi.Router) {
+
 			r.Get("/ws", rm.HandleWS)
+
+			r.Get("/room", func(w http.ResponseWriter, r *http.Request) {
+				http.ServeFile(w, r, "test.html")
+			})
+
+			r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte("Up and Running"))
+			})
 		})
 	})
 
