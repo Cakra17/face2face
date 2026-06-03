@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 	"sync"
 
 	"github.com/coder/websocket"
@@ -25,10 +24,10 @@ func NewPeer(
 	id string, conn *websocket.Conn, pc *webrtc.PeerConnection, ctx context.Context,
 ) *Peer {
 	return &Peer{
-		id: id, 
-		conn: conn, 
-		pc: pc, 
-		ctx: ctx,
+		id:      id,
+		conn:    conn,
+		pc:      pc,
+		ctx:     ctx,
 		streams: make(map[string]*webrtc.TrackRemote),
 	}
 }
@@ -53,28 +52,25 @@ func (p *Peer) SetPeerConnection(pc *webrtc.PeerConnection) {
 
 func (p *Peer) HandleOffer(msg Signal) (webrtc.SessionDescription, error) {
 	p.mu.Lock()
-	defer p.mu.Unlock()	
+	defer p.mu.Unlock()
 
 	offer := webrtc.SessionDescription{
 		Type: webrtc.SDPTypeOffer,
-		SDP: msg.SDP,
+		SDP:  msg.SDP,
 	}
 
 	if err := p.pc.SetRemoteDescription(offer); err != nil {
 		return offer, fmt.Errorf("Failed to Set Remote Description, %s", err.Error())
 	}
-	log.Println("set remote description")
 
 	answer, err := p.pc.CreateAnswer(nil)
 	if err != nil {
 		return offer, fmt.Errorf("Failed to Create the answer, %s", err.Error())
 	}
-	log.Println("create answer")
 
 	if err := p.pc.SetLocalDescription(answer); err != nil {
 		return offer, fmt.Errorf("Failed to set local description, %s", err.Error())
 	}
-	log.Println("set local description")
 
 	return answer, nil
 }
@@ -91,6 +87,12 @@ func (p *Peer) HandleAnswer(answerStr string) error {
 		return fmt.Errorf("Failed to handle answer: %v", err.Error())
 	}
 	return nil
+}
+
+func (p *Peer) HandleICE(candidate webrtc.ICECandidateInit) error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.pc.AddICECandidate(candidate)
 }
 
 func (p *Peer) Send(msg Signal) error {
