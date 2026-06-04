@@ -12,11 +12,10 @@ const (
 	SignalLeave  SignalType = "leave"
 )
 
-// message
 type Signal struct {
-	Type      SignalType               `json:"type"`
-	SDP       string                   `json:"sdp,omitempty"`
-	Candidate *webrtc.ICECandidateInit `json:"candidate,omitempty"`
-	RoomId    string                   `json:"room_id"`
-	PeerId    string                   `json:"peer_id"`
+	Type      SignalType              `json:"type"`
+	SDP       string                  `json:"sdp,omitempty"`
+	Candidate webrtc.ICECandidateInit `json:"candidate,omitempty"`
+	RoomId    string                  `json:"room_id,omitempty"`
+	PeerId    string                  `json:"peer_id,omitempty"`
 }
