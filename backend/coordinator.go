@@ -55,6 +55,8 @@ func (rm *RoomManager) AddUserToRoom(roomId string, peer *Peer) {
 			}
 		}
 
+		room.SubcribeToExistingTrack(peer)
+
 		peer.pc.OnConnectionStateChange(func(pcs webrtc.PeerConnectionState) {
 			switch pcs {
 			case webrtc.PeerConnectionStateFailed:
@@ -79,11 +81,13 @@ func (rm *RoomManager) AddUserToRoom(roomId string, peer *Peer) {
 
 		peer.pc.OnTrack(func(tr *webrtc.TrackRemote, r *webrtc.RTPReceiver) {
 			log.Printf("Track added from peer: %s", peer.id)
+			room.mu.Lock()
 			for _, p := range room.peers {
 				if p.id != peer.id {
 					p.AddRemoteTrack(tr)
 				}
 			}
+			room.mu.Unlock()
 
 			trackLocal, err := webrtc.NewTrackLocalStaticRTP(
 				tr.Codec().RTPCodecCapability,
@@ -94,9 +98,8 @@ func (rm *RoomManager) AddUserToRoom(roomId string, peer *Peer) {
 				return
 			}
 
-			room.mu.Lock()
 			room.tracks[tr.ID()] = trackLocal
-			room.mu.Unlock()
+			room.AddTrackToAllPeers(trackLocal, peer.id)
 
 			buf := make([]byte, 1500)
 			for {
@@ -106,6 +109,20 @@ func (rm *RoomManager) AddUserToRoom(roomId string, peer *Peer) {
 				}
 				trackLocal.Write(buf[:n])
 			}
+		})
+
+		peer.pc.OnNegotiationNeeded(func() {
+			offer, err := peer.pc.CreateOffer(nil)
+			if err != nil {
+				return
+			}
+
+			err = peer.pc.SetLocalDescription(offer)
+			if err != nil {
+				return
+			}
+
+			room.sendOffer(peer, offer.SDP)
 		})
 	}
 }
@@ -157,7 +174,6 @@ func (rm *RoomManager) HandleWS(w http.ResponseWriter, r *http.Request) {
 
 	room := rm.GetOrCreateRoom(msg.RoomId)
 	peer := NewPeer(msg.PeerId, conn, nil, ctx)
-
 	rm.AddUserToRoom(room.id, peer)
 
 	// handle every incoming message
@@ -200,7 +216,7 @@ func (rm *RoomManager) HandleWS(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 		case SignalLeave:
-			rm.RemoveUserFromRoom(room.id, peer)
+			rm.RemoveUserFromRoom(wsMsg.RoomId, peer)
 		default:
 			log.Println("Unknown signal type")
 		}

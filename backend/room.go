@@ -91,3 +91,23 @@ func (r *Room) sendAnswer(p *Peer, answer webrtc.SessionDescription) {
 		p.Send(msg)
 	}
 }
+
+func (r *Room) AddTrackToAllPeers(trackLocal webrtc.TrackLocal, sourcePeerId string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	for _, p := range r.peers {
+		if p.id != sourcePeerId {
+			p.pc.AddTrack(trackLocal)
+		}
+	}
+}
+
+func (r *Room) SubcribeToExistingTrack(newPeer *Peer) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	for _, track := range r.tracks {
+		newPeer.pc.AddTrack(track)
+	}
+}

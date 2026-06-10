@@ -101,9 +101,16 @@ func (p *Peer) Send(msg Signal) error {
 	return wsjson.Write(p.ctx, p.conn, msg)
 }
 
-func (p *Peer) Close() {
+func (p *Peer) Close() error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	p.pc.Close()
-	p.conn.Close(websocket.StatusNormalClosure, fmt.Sprintf("Closing %s connection", p.id))
+	err := p.pc.Close()
+	if err != nil {
+		return err
+	}
+	err = p.conn.Close(websocket.StatusNormalClosure, fmt.Sprintf("Closing %s connection", p.id))
+	if err != nil {
+		return err
+	}
+	return nil
 }
