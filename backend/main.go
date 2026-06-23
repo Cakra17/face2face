@@ -32,18 +32,20 @@ func main() {
 
 	rm := NewRoomManager()
 
-	r.Route("/api", func(r chi.Router) {
-		r.Route("/v1", func(r chi.Router) {
+	r.Route("/", func(r chi.Router) {
+		r.Get("/room", func(w http.ResponseWriter, r *http.Request) {
+			http.ServeFile(w, r, "test.html")
+		})
 
-			r.Get("/ws", rm.HandleWS)
+		r.Route("/api", func(r chi.Router) {
+			r.Route("/v1", func(r chi.Router) {
 
-			r.Get("/room", func(w http.ResponseWriter, r *http.Request) {
-				http.ServeFile(w, r, "test.html")
-			})
+				r.Get("/ws", rm.HandleWS)
 
-			r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
-				w.WriteHeader(http.StatusOK)
-				w.Write([]byte("Up and Running"))
+				r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
+					w.WriteHeader(http.StatusOK)
+					w.Write([]byte("Up and Running"))
+				})
 			})
 		})
 	})
@@ -63,6 +65,13 @@ func main() {
 			log.Printf("Failed to shutdown server: %v", err)
 		}
 		close(closed)
+	}()
+
+	// request a keyframe every 3 seconds for all rooms
+	go func() {
+		for range time.NewTicker(time.Second * 3).C {
+			rm.DispatchKeyframes()
+		}
 	}()
 
 	log.Printf("server running on port %s", server.Addr[1:])

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"sync"
 
@@ -15,64 +16,25 @@ type Peer struct {
 	ctx context.Context
 	mu  sync.RWMutex
 
-	conn    *websocket.Conn
-	pc      *webrtc.PeerConnection
-	streams map[string]*webrtc.TrackRemote
+	conn *websocket.Conn
+	pc   *webrtc.PeerConnection
 }
 
 func NewPeer(
 	id string, conn *websocket.Conn, pc *webrtc.PeerConnection, ctx context.Context,
 ) *Peer {
 	return &Peer{
-		id:      id,
-		conn:    conn,
-		pc:      pc,
-		ctx:     ctx,
-		streams: make(map[string]*webrtc.TrackRemote),
+		id:   id,
+		conn: conn,
+		pc:   pc,
+		ctx:  ctx,
 	}
-}
-
-func (p *Peer) AddRemoteTrack(track *webrtc.TrackRemote) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	p.streams[track.ID()] = track
-}
-
-func (p *Peer) RemoveRemoteTrack(track *webrtc.TrackRemote) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	delete(p.streams, track.ID())
 }
 
 func (p *Peer) SetPeerConnection(pc *webrtc.PeerConnection) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.pc = pc
-}
-
-func (p *Peer) HandleOffer(msg Signal) (webrtc.SessionDescription, error) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
-	offer := webrtc.SessionDescription{
-		Type: webrtc.SDPTypeOffer,
-		SDP:  msg.SDP,
-	}
-
-	if err := p.pc.SetRemoteDescription(offer); err != nil {
-		return offer, fmt.Errorf("Failed to Set Remote Description, %s", err.Error())
-	}
-
-	answer, err := p.pc.CreateAnswer(nil)
-	if err != nil {
-		return offer, fmt.Errorf("Failed to Create the answer, %s", err.Error())
-	}
-
-	if err := p.pc.SetLocalDescription(answer); err != nil {
-		return offer, fmt.Errorf("Failed to set local description, %s", err.Error())
-	}
-
-	return answer, nil
 }
 
 func (p *Peer) HandleAnswer(answerStr string) error {
@@ -89,9 +51,13 @@ func (p *Peer) HandleAnswer(answerStr string) error {
 	return nil
 }
 
-func (p *Peer) HandleICE(candidate webrtc.ICECandidateInit) error {
+func (p *Peer) HandleICE(candidateString string) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
+	candidate := webrtc.ICECandidateInit{}
+	if err := json.Unmarshal([]byte(candidateString), &candidate); err != nil {
+		return err
+	}
 	return p.pc.AddICECandidate(candidate)
 }
 

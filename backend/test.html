@@ -1,101 +1,104 @@
 <!DOCTYPE html>
 <html>
+<!--
+    SPDX-FileCopyrightText: 2026 The Pion community <https://pion.ly>
+    SPDX-License-Identifier: MIT
+  -->
+
+<head>
+  <meta charset="utf-8">
+</head>
 
 <body>
-  <video id="local" autoplay muted playsinline></video>
-  <video id="remote" autoplay playsinline></video>
-  <button onclick="start()">Join</button>
+  <h3> Local Video </h3>
+  <video id="localVideo" autoplay muted></video> <br />
 
-  <script>
-    const ws = new WebSocket('ws://localhost:6969/api/v1/ws')
-    const pc = new RTCPeerConnection({
-      iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
-    })
-
-    // pending ICE candidates queue
-    const pendingCandidates = []
-    let remoteDescSet = false
-
-    // handle incoming messages from signaling server
-    ws.onmessage = async (event) => {
-      const msg = JSON.parse(event.data)
-
-      switch (msg.type) {
-        case 'offer':
-          await pc.setRemoteDescription({ type: 'offer', sdp: msg.sdp })
-          remoteDescSet = true
-
-          // drain queued candidates
-          for (const c of pendingCandidates) {
-            await pc.addIceCandidate(c)
-          }
-          pendingCandidates.length = 0
-
-          const answer = await pc.createAnswer()
-          await pc.setLocalDescription(answer)
-          ws.send(JSON.stringify({ type: 'answer', sdp: answer.sdp }))
-          break
-
-        case 'answer':
-          await pc.setRemoteDescription({ type: 'answer', sdp: msg.sdp })
-          remoteDescSet = true
-
-          for (const c of pendingCandidates) {
-            await pc.addIceCandidate(c)
-          }
-          pendingCandidates.length = 0
-          break
-
-        case 'ice':
-          if (!remoteDescSet) {
-            pendingCandidates.push(msg.candidate)
-          } else {
-            await pc.addIceCandidate(msg.candidate)
-          }
-          break
-
-        case 'joined':
-          console.log('peer joined:', msg.peer_id)
-          break
-
-        case 'left':
-          console.log('peer left:', msg.peer_id)
-          break
-      }
-    }
-
-    // send our ICE candidates to server
-    pc.onicecandidate = (event) => {
-      if (!event.candidate) return
-      ws.send(JSON.stringify({ type: 'ice', candidate: event.candidate }))
-    }
-
-    // render incoming remote tracks
-    pc.ontrack = (event) => {
-      document.getElementById('remote').srcObject = event.streams[0]
-    }
-
-    async function start() {
-      // tell server we're joining
-      ws.send(JSON.stringify({
-        type: 'join',
-        room_id: 'room-1',
-        peer_id: crypto.randomUUID()
-      }))
-
-      // grab camera and mic
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true })
-      document.getElementById('local').srcObject = stream
-
-      // add tracks to PeerConnection
-      stream.getTracks().forEach(track => pc.addTrack(track, stream))
-
-      // create and send offer
-      const offer = await pc.createOffer()
-      await pc.setLocalDescription(offer)
-      ws.send(JSON.stringify({ type: 'offer', sdp: offer.sdp }))
-    }
-  </script>
+  <h3> Remote Video </h3>
+  <div id="remoteVideos"></div> <br />
 </body>
 
-</html>
+<script>
+  const makeId = () => {
+    return crypto.randomUUID();
+  }
+
+  navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+    .then(stream => {
+      let pc = new RTCPeerConnection()
+      pc.ontrack = function (event) {
+        if (event.track.kind === 'audio') {
+          return
+        }
+
+        let el = document.createElement(event.track.kind)
+        el.srcObject = event.streams[0]
+        el.autoplay = true
+        el.controls = true
+        document.getElementById('remoteVideos').appendChild(el)
+
+        event.track.onmute = function (event) {
+          el.play()
+        }
+
+        event.streams[0].onremovetrack = ({ track }) => {
+          if (el.parentNode) {
+            el.parentNode.removeChild(el)
+          }
+        }
+      }
+
+      document.getElementById('localVideo').srcObject = stream
+      stream.getTracks().forEach(track => pc.addTrack(track, stream))
+
+      let ws = new WebSocket("ws://localhost:6969/api/v1/ws")
+      pc.onicecandidate = e => {
+        if (!e.candidate) {
+          return
+        }
+
+        ws.send(JSON.stringify({ type: 'candidate', data: JSON.stringify(e.candidate) }))
+      }
+
+      ws.onclose = function (evt) {
+        window.alert("Websocket has closed")
+      }
+
+      ws.onmessage = function (evt) {
+        let msg = JSON.parse(evt.data)
+        if (!msg) {
+          return console.log('failed to parse msg')
+        }
+
+        switch (msg.type) {
+          case 'offer':
+            let offer = JSON.parse(msg.data)
+            if (!offer) {
+              return console.log('failed to parse answer')
+            }
+            pc.setRemoteDescription(offer)
+            pc.createAnswer().then(answer => {
+              pc.setLocalDescription(answer)
+              ws.send(JSON.stringify({ type: 'answer', data: JSON.stringify(answer) }))
+            })
+            return
+
+          case 'candidate':
+            let candidate = JSON.parse(msg.data)
+            if (!candidate) {
+              return console.log('failed to parse candidate')
+            }
+
+            pc.addIceCandidate(candidate)
+        }
+      }
+
+      ws.onerror = function (evt) {
+        console.log("ERROR: " + evt.data)
+      }
+
+      ws.addEventListener("open", () => {
+        ws.send(JSON.stringify({ type: "join", room_id: "room-1", peer_id: makeId() }));
+      }); 
+    }).catch(window.alert)
+</script>
+
