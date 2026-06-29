@@ -1,30 +1,100 @@
-import React, { useEffect } from "react";
-import useCamera from "@/camera";
-import Button from "@/components/button";
-import { Client } from "@/websocket";
-import { Camera, CameraOff } from "lucide-react";
-import { useNavigate } from "@tanstack/react-router";
+import React, { useEffect, useRef } from "react";
+// import Button from "@/components/button";
+// import { Camera, CameraOff } from "lucide-react";
 
 export default function Preview() {
-  const {videoRef, webcamActive, toggleWebcam} = useCamera();
-  const navigate = useNavigate();
-  let client: Client;
+  const videoRef = useRef<HTMLVideoElement>(null);
 
-  useEffect(() => {
-    client = new Client("ws://localhost:6969/api/v1/ws");
+  function makeId(): string {
+    return crypto.randomUUID();
+  }
+
+  useEffect(() => {  
+    navigator.mediaDevices.getUserMedia({ video: true, audio: true }).
+    then((stream) => {
+      const pc = new RTCPeerConnection();
+      pc.ontrack = (event) => {
+        if (event.track.kind === "audio") return;
+
+        const el = document.createElement("video");
+        el.srcObject = event.streams[0];
+        el.autoplay = true;
+
+        document.getElementById("remoteVideos")?.appendChild(el);
+
+      	event.streams[0].onremovetrack = () => {
+          if (el.parentNode) {
+            el.parentNode.removeChild(el);
+          }
+      	}
+      }
+
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+      stream.getTracks().forEach(track => pc.addTrack(track, stream));
+
+      const ws = new WebSocket("ws://localhost:6969/api/v1/ws")
+
+      pc.onicecandidate = (ev) => {
+        if (!ev.candidate) return;
+        ws.send(JSON.stringify({ type: "candidate", data: JSON.stringify(ev.candidate) }));
+      }
+
+      ws.onclose = function () {
+        window.alert("Websocket has closed");
+      }
+
+      ws.onmessage = async (evt) => {
+        let msg = JSON.parse(evt.data);
+        if (!msg) {
+          return console.log('failed to parse msg');
+        }
+
+        switch (msg.type) {
+          case 'offer':
+            let offer = JSON.parse(msg.data);
+            if (!offer) {
+              return console.log('failed to parse answer');
+            }
+            pc.setRemoteDescription(offer);
+            pc.createAnswer().then(answer => {
+              pc.setLocalDescription(answer);
+              ws.send(JSON.stringify({ type: 'answer', data: JSON.stringify(answer) }));
+            });
+            return;
+
+          case 'candidate':
+            let candidate = JSON.parse(msg.data);
+            if (!candidate) {
+              return console.log('failed to parse candidate');
+            }
+
+            pc.addIceCandidate(candidate);
+        }
+      }
+
+      ws.onerror = function (evt) {
+        console.log("ERROR: " + evt);
+      }
+
+      ws.addEventListener("open", () => {
+        ws.send(JSON.stringify({ type: "join", room_id: "room-1", peer_id: makeId() }));
+      });
+
+    });
   }, []);
 
   const handleRoomId = (event: React.FocusEvent<HTMLInputElement>) => {
     const { value } = event.target;
-    client.setRoomId(value);
+    console.log(value);
   };
 
-  const handleJoin = (event: React.SubmitEvent) => {
+  const handleJoin = (event: React.FormEvent) => {
     event.preventDefault();
-    client.joinRoom();
-    const roomId = client.getRoomId();
-    navigate({ to: "/rooms/$roomId", params: {roomId}});
-  };
+    // const roomId = clientRef.current.getRoomId();
+    // navigate({ to: "/rooms/$roomId", params: {roomId}});
+  }; 
 
   return (
     <section className="w-full min-h-dvh bg-gradient-to-br from-gray-50 to-gray-100">
@@ -38,15 +108,16 @@ export default function Preview() {
               id="webcam"
               autoPlay
               playsInline
+              muted
               ref={videoRef}
               width="1280" height="720"
               className={`w-full h-auto rounded-xl`}
             />
             <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex flex-row gap-2 items-center">
-              {webcamActive ? 
+              {/* {webcamActive ? 
                 (<Button onClick={toggleWebcam} Icon={Camera} variant="active" />) : 
                 (<Button onClick={toggleWebcam} Icon={CameraOff} variant="deactivate" />)
-              }
+              } */}
             </div>
           </div>
           <div className="flex justify-center items-center p-2">
@@ -62,6 +133,9 @@ export default function Preview() {
               </button>
             </form>
           </div>
+
+          {/* remote */}
+          <div id="remoteVideos"></div>
         </div>
       </div>
     </section >
