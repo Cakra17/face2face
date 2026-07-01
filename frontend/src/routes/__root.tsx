@@ -3,7 +3,7 @@ import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
 import { TanStackDevtools } from '@tanstack/react-devtools'
 
 import appCss from '../styles.css?url'
-// import { ClientProvider } from '@/context/client'
+import { UserConnectionProvider } from '@/connection'
 
 export const Route = createRootRoute({
   head: () => ({
@@ -40,9 +40,9 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <HeadContent />
       </head>
       <body>
-        {/* <ClientProvider> */}
+        <UserConnectionProvider url='ws://localhost:6969/api/v1/ws'>
           {children}
-        {/* </ClientProvider> */}
+        </UserConnectionProvider>
         <TanStackDevtools
           config={{
             position: 'bottom-right',

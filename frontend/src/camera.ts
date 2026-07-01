@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 
-export default function useCamera() {
+export default function useCamera(peerConnection: RTCPeerConnection | null) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [mediaStream, setMediaStream] = useState<MediaStream | null>(null);
   const [webcamActive, setWebcamActive] = useState(false);
@@ -8,17 +8,22 @@ export default function useCamera() {
   const startWebcam = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: true
+        video: true,
+        audio: true,
       });
 
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
       }
 
+      if (peerConnection) {
+        stream.getTracks().forEach(track => peerConnection.addTrack(track, stream));
+      }
+
       setMediaStream(stream);
       setWebcamActive(true);
     } catch (error) {
-      console.log("Can't open camera", error);
+      console.error("Can't open camera", error);
       setWebcamActive(false);
     }
   };
@@ -39,9 +44,9 @@ export default function useCamera() {
     setWebcamActive(false);
   };
 
-  const toggleWebcam = () => {
+  const toggleWebcam = async () => {
     if (!mediaStream) {
-      startWebcam();
+      await startWebcam();
     } else {
       stopWebcam();
     }
