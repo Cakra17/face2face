@@ -3,7 +3,8 @@ import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
 import { TanStackDevtools } from '@tanstack/react-devtools'
 
 import appCss from '../styles.css?url'
-import { UserConnectionProvider } from '@/connection'
+// import { UserConnectionProvider } from '@/connection'
+// import useCamera from '@/camera'
 
 export const Route = createRootRoute({
   head: () => ({
@@ -34,15 +35,16 @@ export const Route = createRootRoute({
 })
 
 function RootDocument({ children }: { children: React.ReactNode }) {
+  // const { mediaStream } = useCamera();
   return (
     <html lang="en">
       <head>
         <HeadContent />
       </head>
       <body>
-        <UserConnectionProvider url='ws://localhost:6969/api/v1/ws'>
+        {/* <UserConnectionProvider url='ws://localhost:6969/api/v1/ws' localTrack={mediaStream}> */}
           {children}
-        </UserConnectionProvider>
+        {/* </UserConnectionProvider> */}
         <TanStackDevtools
           config={{
             position: 'bottom-right',

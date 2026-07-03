@@ -1,101 +1,32 @@
-import React, { useEffect, useRef } from "react";
-// import Button from "@/components/button";
-// import { Camera, CameraOff } from "lucide-react";
+// import { useConnection } from "@/connection";
+import useMedia from "@/hooks/useMedia";
+import React from "react";
+import Button from "@/components/button";
+import { Camera, CameraOff, Mic, MicOff } from "lucide-react";
+import VideoTile from "@/components/video-tile";
+import { useClient } from "@/hooks/useSfu";
 
 export default function Preview() {
-  const videoRef = useRef<HTMLVideoElement>(null);
-
-  function makeId(): string {
-    return crypto.randomUUID();
-  }
-
-  useEffect(() => {  
-    navigator.mediaDevices.getUserMedia({ video: true, audio: true }).
-    then((stream) => {
-      const pc = new RTCPeerConnection();
-      pc.ontrack = (event) => {
-        if (event.track.kind === "audio") return;
-
-        const el = document.createElement("video");
-        el.srcObject = event.streams[0];
-        el.autoplay = true;
-
-        document.getElementById("remoteVideos")?.appendChild(el);
-
-      	event.streams[0].onremovetrack = () => {
-          if (el.parentNode) {
-            el.parentNode.removeChild(el);
-          }
-      	}
-      }
-
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-      }
-      stream.getTracks().forEach(track => pc.addTrack(track, stream));
-
-      const ws = new WebSocket("ws://localhost:6969/api/v1/ws")
-
-      pc.onicecandidate = (ev) => {
-        if (!ev.candidate) return;
-        ws.send(JSON.stringify({ type: "candidate", data: JSON.stringify(ev.candidate) }));
-      }
-
-      ws.onclose = function () {
-        window.alert("Websocket has closed");
-      }
-
-      ws.onmessage = async (evt) => {
-        let msg = JSON.parse(evt.data);
-        if (!msg) {
-          return console.log('failed to parse msg');
-        }
-
-        switch (msg.type) {
-          case 'offer':
-            let offer = JSON.parse(msg.data);
-            if (!offer) {
-              return console.log('failed to parse answer');
-            }
-            pc.setRemoteDescription(offer);
-            pc.createAnswer().then(answer => {
-              pc.setLocalDescription(answer);
-              ws.send(JSON.stringify({ type: 'answer', data: JSON.stringify(answer) }));
-            });
-            return;
-
-          case 'candidate':
-            let candidate = JSON.parse(msg.data);
-            if (!candidate) {
-              return console.log('failed to parse candidate');
-            }
-
-            pc.addIceCandidate(candidate);
-        }
-      }
-
-      ws.onerror = function (evt) {
-        console.log("ERROR: " + evt);
-      }
-
-      ws.addEventListener("open", () => {
-        ws.send(JSON.stringify({ type: "join", room_id: "room-1", peer_id: makeId() }));
-      });
-
-    });
-  }, []);
+  const client = useClient();
+  const localMedia = useMedia();
 
   const handleRoomId = (event: React.FocusEvent<HTMLInputElement>) => {
     const { value } = event.target;
     console.log(value);
   };
 
-  const handleJoin = (event: React.FormEvent) => {
+  const makeId = () => {
+    return crypto.randomUUID();
+  }
+
+  const handleJoin = async (event: React.SubmitEvent) => {
     event.preventDefault();
+    const stream = await localMedia.startWebcam();
+    client.connectWs("room-1", makeId(), stream);
     // const roomId = clientRef.current.getRoomId();
     // navigate({ to: "/rooms/$roomId", params: {roomId}});
   }; 
-
+  
   return (
     <section className="w-full min-h-dvh bg-gradient-to-br from-gray-50 to-gray-100">
       <div className="flex flex-col items-center justify-center min-h-dvh gap-8 px-4 py-8 sm:gap-12">
@@ -104,20 +35,25 @@ export default function Preview() {
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 w-full sm:min-h-[420px] max-w-4xl p-4">
           <div className="col-span-2 relative">
+            {/* <VideoTile stream={mediaStream} key={mediaStream?.id} /> */}
             <video
               id="webcam"
               autoPlay
               playsInline
               muted
-              ref={videoRef}
+              ref={localMedia.videoRef}
               width="1280" height="720"
               className={`w-full h-auto rounded-xl`}
             />
             <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex flex-row gap-2 items-center">
-              {/* {webcamActive ? 
-                (<Button onClick={toggleWebcam} Icon={Camera} variant="active" />) : 
-                (<Button onClick={toggleWebcam} Icon={CameraOff} variant="deactivate" />)
-              } */}
+              { localMedia.webcamActive ? 
+                (<Button onClick={localMedia.toggleWebcam} Icon={Camera} variant="active" />) : 
+                (<Button onClick={localMedia.toggleWebcam} Icon={CameraOff} variant="deactivate" />)
+              }
+              { localMedia.micActive ? 
+                (<Button onClick={localMedia.toggleAudio} Icon={Mic} variant="active" />) : 
+                (<Button onClick={localMedia.toggleAudio} Icon={MicOff} variant="deactivate" />)
+              }
             </div>
           </div>
           <div className="flex justify-center items-center p-2">
@@ -135,7 +71,11 @@ export default function Preview() {
           </div>
 
           {/* remote */}
-          <div id="remoteVideos"></div>
+          <div id="remoteVideos">
+            {client.remoteStreams.map((stream, index) => (
+              <VideoTile key={stream.id || index} label={stream.id} stream={stream}/>
+            ))}
+          </div>
         </div>
       </div>
     </section >
