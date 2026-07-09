@@ -1,31 +1,32 @@
-import React, { useEffect } from "react";
-import useCamera from "@/camera";
+// import { useConnection } from "@/connection";
+import useMedia from "@/hooks/useMedia";
+import React from "react";
 import Button from "@/components/button";
-import { Client } from "@/websocket";
-import { Camera, CameraOff } from "lucide-react";
-import { useNavigate } from "@tanstack/react-router";
+import { Camera, CameraOff, Mic, MicOff } from "lucide-react";
+import VideoTile from "@/components/video-tile";
+import { useClient } from "@/hooks/useSfu";
 
 export default function Preview() {
-  const {videoRef, webcamActive, toggleWebcam} = useCamera();
-  const navigate = useNavigate();
-  let client: Client;
-
-  useEffect(() => {
-    client = new Client("ws://localhost:6969/api/v1/ws");
-  }, []);
+  const client = useClient();
+  const localMedia = useMedia();
 
   const handleRoomId = (event: React.FocusEvent<HTMLInputElement>) => {
     const { value } = event.target;
-    client.setRoomId(value);
+    console.log(value);
   };
 
-  const handleJoin = (event: React.SubmitEvent) => {
+  const makeId = () => {
+    return crypto.randomUUID();
+  }
+
+  const handleJoin = async (event: React.SubmitEvent) => {
     event.preventDefault();
-    client.joinRoom();
-    const roomId = client.getRoomId();
-    navigate({ to: "/rooms/$roomId", params: {roomId}});
-  };
-
+    const stream = await localMedia.startWebcam();
+    client.connectWs("room-1", makeId(), stream);
+    // const roomId = clientRef.current.getRoomId();
+    // navigate({ to: "/rooms/$roomId", params: {roomId}});
+  }; 
+  
   return (
     <section className="w-full min-h-dvh bg-gradient-to-br from-gray-50 to-gray-100">
       <div className="flex flex-col items-center justify-center min-h-dvh gap-8 px-4 py-8 sm:gap-12">
@@ -34,18 +35,24 @@ export default function Preview() {
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 w-full sm:min-h-[420px] max-w-4xl p-4">
           <div className="col-span-2 relative">
+            {/* <VideoTile stream={mediaStream} key={mediaStream?.id} /> */}
             <video
               id="webcam"
               autoPlay
               playsInline
-              ref={videoRef}
+              muted
+              ref={localMedia.videoRef}
               width="1280" height="720"
               className={`w-full h-auto rounded-xl`}
             />
             <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex flex-row gap-2 items-center">
-              {webcamActive ? 
-                (<Button onClick={toggleWebcam} Icon={Camera} variant="active" />) : 
-                (<Button onClick={toggleWebcam} Icon={CameraOff} variant="deactivate" />)
+              { localMedia.webcamActive ? 
+                (<Button onClick={localMedia.toggleWebcam} Icon={Camera} variant="active" />) : 
+                (<Button onClick={localMedia.toggleWebcam} Icon={CameraOff} variant="deactivate" />)
+              }
+              { localMedia.micActive ? 
+                (<Button onClick={localMedia.toggleAudio} Icon={Mic} variant="active" />) : 
+                (<Button onClick={localMedia.toggleAudio} Icon={MicOff} variant="deactivate" />)
               }
             </div>
           </div>
@@ -61,6 +68,13 @@ export default function Preview() {
                 Join Room
               </button>
             </form>
+          </div>
+
+          {/* remote */}
+          <div id="remoteVideos">
+            {client.remoteStreams.map((stream, index) => (
+              <VideoTile key={stream.id || index} label={stream.id} stream={stream}/>
+            ))}
           </div>
         </div>
       </div>
