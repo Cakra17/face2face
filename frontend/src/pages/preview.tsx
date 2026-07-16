@@ -1,14 +1,12 @@
-// import { useConnection } from "@/connection";
-import useMedia from "@/hooks/useMedia";
+import { useConnection } from "@/connection";
 import React from "react";
 import Button from "@/components/button";
 import { Camera, CameraOff, Mic, MicOff } from "lucide-react";
-import VideoTile from "@/components/video-tile";
-import { useClient } from "@/hooks/useSfu";
+import { useNavigate } from "@tanstack/react-router";
 
 export default function Preview() {
-  const client = useClient();
-  const localMedia = useMedia();
+  const clientCtx = useConnection();
+  const navigate = useNavigate();
 
   const handleRoomId = (event: React.FocusEvent<HTMLInputElement>) => {
     const { value } = event.target;
@@ -21,10 +19,9 @@ export default function Preview() {
 
   const handleJoin = async (event: React.SubmitEvent) => {
     event.preventDefault();
-    const stream = await localMedia.startWebcam();
-    client.connectWs("room-1", makeId(), stream);
-    // const roomId = clientRef.current.getRoomId();
-    // navigate({ to: "/rooms/$roomId", params: {roomId}});
+    const stream = await clientCtx.localMedia.startWebcam();
+    clientCtx.connect("room-1", makeId(), stream);
+    navigate({ to: "/rooms/$roomId", params: {roomId: "room-1"}});
   }; 
   
   return (
@@ -35,24 +32,23 @@ export default function Preview() {
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 w-full sm:min-h-[420px] max-w-4xl p-4">
           <div className="col-span-2 relative">
-            {/* <VideoTile stream={mediaStream} key={mediaStream?.id} /> */}
             <video
               id="webcam"
               autoPlay
               playsInline
               muted
-              ref={localMedia.videoRef}
+              ref={clientCtx.localMedia.videoRef}
               width="1280" height="720"
               className={`w-full h-auto rounded-xl`}
             />
             <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex flex-row gap-2 items-center">
-              { localMedia.webcamActive ? 
-                (<Button onClick={localMedia.toggleWebcam} Icon={Camera} variant="active" />) : 
-                (<Button onClick={localMedia.toggleWebcam} Icon={CameraOff} variant="deactivate" />)
+              { clientCtx.localMedia.webcamActive ? 
+                (<Button onClick={clientCtx.localMedia.toggleWebcam} Icon={Camera} variant="active" />) : 
+                (<Button onClick={clientCtx.localMedia.toggleWebcam} Icon={CameraOff} variant="deactivate" />)
               }
-              { localMedia.micActive ? 
-                (<Button onClick={localMedia.toggleAudio} Icon={Mic} variant="active" />) : 
-                (<Button onClick={localMedia.toggleAudio} Icon={MicOff} variant="deactivate" />)
+              { clientCtx.localMedia.micActive ? 
+                (<Button onClick={clientCtx.localMedia.toggleAudio} Icon={Mic} variant="active" />) : 
+                (<Button onClick={clientCtx.localMedia.toggleAudio} Icon={MicOff} variant="deactivate" />)
               }
             </div>
           </div>
@@ -68,13 +64,6 @@ export default function Preview() {
                 Join Room
               </button>
             </form>
-          </div>
-
-          {/* remote */}
-          <div id="remoteVideos">
-            {client.remoteStreams.map((stream, index) => (
-              <VideoTile key={stream.id || index} label={stream.id} stream={stream}/>
-            ))}
           </div>
         </div>
       </div>
