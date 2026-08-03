@@ -3,7 +3,7 @@ import { useClient } from "./hooks/useSfu";
 import useMedia from "./hooks/useMedia";
 
 type Media = {
- 	videoRef: React.RefObject<HTMLVideoElement | null>;
+	videoRef: React.RefObject<HTMLVideoElement | null>;
 	webcamActive: boolean;
 	micActive: boolean;
 	mediaStream: MediaStream | null;
@@ -29,18 +29,18 @@ export const UserConnectionProvider = ({
 	children: React.ReactNode;
 }) => {
 	const [isConnected, setIsConnected] = useState<boolean>(false);
-  const client = useClient();
+	const client = useClient();
 	const localMedia = useMedia();
 
-  const connect = (roomId: string, peerId: string, localMedia: MediaStream) => {
+	const connect = (roomId: string, peerId: string, localMedia: MediaStream) => {
 		client.connectWs(roomId, peerId, localMedia);
 		setIsConnected(true);
-  };
+	};
 
-  const disconnect = () => {
+	const disconnect = () => {
 		client.leaveRoom();
 		setIsConnected(false);
-  };
+	};
 
 	const getRemoteStreams = () => {
 		return client.remoteStreams;

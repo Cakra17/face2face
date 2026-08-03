@@ -1,26 +1,41 @@
-import Card from '@/components/card'
+import { UserPlus, Video } from "lucide-react";
+import Card from "@/components/card";
+import Footer from "@/components/footer";
+import Nav from "@/components/nav";
 
 export default function Home() {
-  return (
-    <section className="w-full min-h-dvh bg-gradient-to-br from-gray-50 to-gray-100">
-      <div className="flex flex-col items-center justify-center min-h-dvh gap-8 px-4 py-8 sm:gap-12">
-        <div className="text-center">
-          <h1 className="text-3xl sm:text-5xl font-bold text-gray-900 mb-2">Face2Face</h1>
-          <p className="text-gray-500 text-base sm:text-lg">Connect face to face, online.</p>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 w-full max-w-2xl">
-          <Card
-            title="Join as Client"
-            description="Start a video call as a participant"
-            to="/preview"
-          />
-          <Card
-            title="Create as Host"
-            description="Host a new video session"
-            to="/preview"
-          />
-        </div>
-      </div>
-    </section>
-  )
+	return (
+		<section className="flex min-h-dvh w-full flex-col bg-bg">
+			<Nav />
+
+			<main className="flex flex-1 flex-col items-center justify-center gap-10 px-4 py-16 sm:gap-14 sm:py-24">
+				<div className="max-w-2xl text-center">
+					<h1 className="mb-4 text-4xl font-bold tracking-tight text-fg sm:text-6xl">
+						Connect face to face, online.
+					</h1>
+					<p className="mx-auto max-w-xl text-base text-fg-muted sm:text-lg">
+						A fast, minimal video calling experience. Join an existing room or
+						start your own in seconds — no installs required.
+					</p>
+				</div>
+
+				<div className="grid w-full max-w-2xl grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6">
+					<Card
+						title="Join as Client"
+						description="Hop into a video call as a participant."
+						to="/preview"
+						icon={UserPlus}
+					/>
+					<Card
+						title="Create as Host"
+						description="Start a new room and invite others in."
+						to="/preview"
+						icon={Video}
+					/>
+				</div>
+			</main>
+
+			<Footer />
+		</section >
+	);
 }

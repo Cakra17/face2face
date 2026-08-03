@@ -1,27 +1,37 @@
-import { Link } from '@tanstack/react-router'
+import { Link } from "@tanstack/react-router";
+import { ChevronRight, type LucideIcon } from "lucide-react";
 
 interface CardProps {
-  title: string
-  to: string
-  description?: string
+	title: string;
+	to: string;
+	description?: string;
+	icon?: LucideIcon;
 }
 
-export default function Card({ title, to, description }: CardProps) {
-  return (
-    <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm hover:shadow-md hover:border-gray-300 transition-all duration-200">
-      <Link
-        to={to}
-        className="block"
-      >
-        <h2 className="text-2xl font-semibold text-gray-900 mb-2">{title}</h2>
-        {description && <p className="text-gray-500 mb-4">{description}</p>}
-        <span className="inline-flex items-center text-blue-500 font-medium">
-          Get started
-          <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-          </svg>
-        </span>
-      </Link>
-    </div>
-  )
+export default function Card({
+	title,
+	to,
+	description,
+	icon: Icon,
+}: CardProps) {
+	return (
+		<Link
+			to={to}
+			className="group block rounded-xl border border-border bg-bg p-6 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-border-strong hover:shadow-md"
+		>
+			{Icon && (
+				<div className="mb-4 flex h-11 w-11 items-center justify-center rounded-lg bg-bg-muted text-fg transition-colors duration-200 group-hover:bg-border">
+					<Icon className="h-5 w-5" strokeWidth={1.75} />
+				</div>
+			)}
+			<h2 className="mb-1.5 text-lg font-semibold text-fg">{title}</h2>
+			{description && (
+				<p className="mb-4 text-sm text-fg-subtle">{description}</p>
+			)}
+			<span className="inline-flex items-center text-sm font-medium text-fg">
+				Get started
+				<ChevronRight className="ml-1 h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5" />
+			</span>
+		</Link>
+	);
 }
