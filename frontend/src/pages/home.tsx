@@ -29,13 +29,13 @@ export default function Home() {
 					<Card
 						title="Create as Host"
 						description="Start a new room and invite others in."
-						to="/preview"
+						to="/host"
 						icon={Video}
 					/>
 				</div>
 			</main>
 
 			<Footer />
-		</section >
+		</section>
 	);
 }
