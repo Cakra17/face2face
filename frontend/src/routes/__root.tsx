@@ -3,11 +3,12 @@ import { createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
 import { ThemeProvider } from "@/components/theme-provider";
 import { UserConnectionProvider } from "@/connection";
+import NotFound from "@/pages/not-found";
+import noFlashScript from "@/scripts/no-flash-theme.js?raw";
 import appCss from "../styles.css?url";
 
-const noFlashScript = `(function(){try{var t=localStorage.getItem('theme');var m=window.matchMedia('(prefers-color-scheme: dark)').matches;if(t==='dark'||(t!=='light'&&m)){document.documentElement.classList.add('dark')}}catch(e){}})()`;
-
 export const Route = createRootRoute({
+	notFoundComponent: NotFound,
 	head: () => ({
 		meta: [
 			{
@@ -37,7 +38,7 @@ export const Route = createRootRoute({
 
 function RootDocument({ children }: { children: React.ReactNode }) {
 	return (
-		<html lang="en">
+		<html lang="en" suppressHydrationWarning>
 			<head>
 				<HeadContent />
 				{/* biome-ignore lint/security/noDangerouslySetInnerHtml: static no-flash theme script, no user input */}
