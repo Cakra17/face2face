@@ -5,6 +5,9 @@ BUILD_DIR=.build/
 run:
 	go run .
 
+test:
+	go test -v .
+
 build:
 	go build -o $(BUILD_DIR) .
 
