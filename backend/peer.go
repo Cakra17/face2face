@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"sync"
 
@@ -37,27 +36,19 @@ func (p *Peer) SetPeerConnection(pc *webrtc.PeerConnection) {
 	p.pc = pc
 }
 
-func (p *Peer) HandleAnswer(answerStr string) error {
+func (p *Peer) HandleAnswer(answer webrtc.SessionDescription) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	answer := webrtc.SessionDescription{
-		Type: webrtc.SDPTypeAnswer,
-		SDP:  answerStr,
-	}
 	if err := p.pc.SetRemoteDescription(answer); err != nil {
 		return fmt.Errorf("Failed to handle answer: %v", err.Error())
 	}
 	return nil
 }
 
-func (p *Peer) HandleICE(candidateString string) error {
+func (p *Peer) HandleICE(candidate webrtc.ICECandidateInit) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	candidate := webrtc.ICECandidateInit{}
-	if err := json.Unmarshal([]byte(candidateString), &candidate); err != nil {
-		return err
-	}
 	return p.pc.AddICECandidate(candidate)
 }
 
